@@ -1,0 +1,344 @@
+<% const title = 'إنشاء فاتورة جديدة'; %>
+<%- include('../layout', { title, body: `
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">إنشاء فاتورة جديدة</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="/invoices" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right"></i>
+            العودة للفواتير
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">بيانات الفاتورة</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/invoices" id="invoiceForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="invoiceCode" class="form-label">رقم الفاتورة <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="invoiceCode" name="invoiceCode" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="invoiceDate" class="form-label">تاريخ الفاتورة <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="invoiceDate" name="invoiceDate" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="client" class="form-label">العميل <span class="text-danger">*</span></label>
+                            <select class="form-select" id="client" name="client" required>
+                                <option value="">اختر العميل</option>
+                                ${clients.map(client => `
+                                    <option value="${client._id}">${client.fullName}${client.invoiceCount > 0 ? ` (${client.invoiceCount} فاتورة)` : ''}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="file" class="form-label">الملف <span class="text-danger">*</span></label>
+                            <select class="form-select" id="file" name="file" required>
+                                <option value="">اختر الملف</option>
+                                ${files.map(file => `
+                                    <option value="${file._id}">${file.fileName} - ${file.company?.name || 'غير محدد'}${file.invoiceCount > 0 ? ` (${file.invoiceCount} فاتورة)` : ''}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="assignedDistributor" class="form-label">الموزع المكلف <span class="text-danger">*</span></label>
+                            <select class="form-select" id="assignedDistributor" name="assignedDistributor" required>
+                                <option value="">اختر الموزع</option>
+                                ${distributors.map(distributor => `
+                                    <option value="${distributor._id}">${distributor.username}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="amount" class="form-label">المبلغ (جنيه) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="amount" name="amount" min="0" step="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            إنشاء الفاتورة
+                        </button>
+                        <a href="/invoices" class="btn btn-outline-secondary">إلغاء</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">معلومات العمولة</h5>
+            </div>
+            <div class="card-body">
+                <div id="commissionInfo">
+                    <p class="text-muted">أدخل جميع البيانات والمبلغ لعرض معلومات العمولة</p>
+                </div>
+                <button type="button" class="btn btn-outline-info btn-sm w-100" id="calculateBtn" disabled>
+                    <i class="fas fa-calculator"></i>
+                    حساب العمولة
+                </button>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">تعليمات</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="fas fa-hashtag text-info"></i>
+                        رقم الفاتورة يجب أن يكون فريد
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-percentage text-warning"></i>
+                        نسب العمولة تحسب تلقائياً حسب المبلغ
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-calculator text-success"></i>
+                        تأكد من صحة المبلغ المدخل
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Dark mode form styling */
+.form-control, .form-select {
+    background-color: var(--input-bg);
+    border: 2px solid var(--input-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--input-bg);
+    border-color: #667eea;
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.form-text {
+    color: var(--text-muted);
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.card-header {
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-outline-secondary {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.btn-outline-info {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.btn-outline-info:hover {
+    background-color: #17a2b8;
+    color: white;
+    border-color: #17a2b8;
+}
+
+.btn-outline-info:disabled {
+    color: var(--text-muted);
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+/* Dark mode specific adjustments */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--input-bg);
+    border-color: #667eea;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .text-danger {
+    color: #ff6b6b !important;
+}
+
+[data-theme="dark"] .text-info {
+    color: #74c0fc !important;
+}
+
+[data-theme="dark"] .text-warning {
+    color: #ffd43b !important;
+}
+
+[data-theme="dark"] .text-success {
+    color: #51cf66 !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .btn-outline-info {
+    color: #74c0fc;
+    border-color: #74c0fc;
+}
+
+[data-theme="dark"] .btn-outline-info:hover {
+    background-color: #74c0fc;
+    color: var(--text-inverse);
+    border-color: #74c0fc;
+}
+
+[data-theme="dark"] .btn-outline-info:disabled {
+    color: var(--text-muted);
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+/* Commission info styling */
+#commissionInfo {
+    min-height: 60px;
+}
+
+[data-theme="dark"] #commissionInfo .alert {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('invoiceDate').value = today;
+    
+    const clientSelect = document.getElementById('client');
+    const distributorSelect = document.getElementById('assignedDistributor');
+    const fileSelect = document.getElementById('file');
+    const amountInput = document.getElementById('amount');
+    const commissionInfo = document.getElementById('commissionInfo');
+    const calculateBtn = document.getElementById('calculateBtn');
+    
+    function checkFormCompletion() {
+        const isComplete = clientSelect.value && distributorSelect.value && fileSelect.value && amountInput.value && parseFloat(amountInput.value) > 0;
+        calculateBtn.disabled = !isComplete;
+    }
+    
+    function calculateCommission() {
+        if (!clientSelect.value || !distributorSelect.value || !fileSelect.value || !amountInput.value) {
+            return;
+        }
+        
+        const amount = parseFloat(amountInput.value);
+        if (amount <= 0) {
+            return;
+        }
+        
+        calculateBtn.disabled = true;
+        calculateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحساب...';
+        
+        fetch('/invoices/calculate-commission', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                clientId: clientSelect.value,
+                distributorId: distributorSelect.value,
+                fileId: fileSelect.value,
+                amount: amount
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                commissionInfo.innerHTML = \`<div class="alert alert-danger">\${data.error}</div>\`;
+            } else {
+                commissionInfo.innerHTML = \`
+                    <div class="row">
+                        <div class="col-12 mb-2">
+                            <strong>عمولة العميل:</strong> %\${data.clientRate}
+                            <br><small class="text-muted">\${data.clientCommission} جنيه</small>
+                        </div>
+                        <div class="col-12 mb-2">
+                            <strong>عمولة الموزع:</strong> %\${data.distributorRate}
+                            <br><small class="text-muted">\${data.distributorCommission} جنيه</small>
+                        </div>
+                        <div class="col-12 mb-2">
+                            <strong>عمولة الشركة:</strong> %\${data.companyRate}
+                            <br><small class="text-muted">\${data.companyCommission} جنيه</small>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-2">
+                        <small>ستحفظ هذه النسب مع الفاتورة</small>
+                    </div>
+                \`;
+            }
+        })
+        .catch(error => {
+            commissionInfo.innerHTML = '<div class="alert alert-danger">حدث خطأ أثناء حساب العمولة</div>';
+        })
+        .finally(() => {
+            calculateBtn.disabled = false;
+            calculateBtn.innerHTML = '<i class="fas fa-calculator"></i> حساب العمولة';
+            checkFormCompletion();
+        });
+    }
+    
+    clientSelect.addEventListener('change', checkFormCompletion);
+    distributorSelect.addEventListener('change', checkFormCompletion);
+    fileSelect.addEventListener('change', checkFormCompletion);
+    amountInput.addEventListener('input', checkFormCompletion);
+    calculateBtn.addEventListener('click', calculateCommission);
+});
+</script>
+` }) %>
